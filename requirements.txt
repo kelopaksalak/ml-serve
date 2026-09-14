@@ -1,0 +1,9 @@
+flask
+flask-sqlalchemy
+flask-jwt-extended
+marshmallow
+werkzeug
+python-dotenv
+gunicorn
+click
+scikit-learn
