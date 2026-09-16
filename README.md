@@ -195,6 +195,10 @@ source venv/bin/activate       # macOS/Linux
 # Install
 pip install -r requirements.txt
 
+# Setup environment
+cp .env.example .env
+# Edit .env with your own secrets
+
 # Create user
 python cli.py create-user --username admin --password <your-password>
 
@@ -203,6 +207,8 @@ python run.py
 ```
 
 Server runs at `http://127.0.0.1:5000`.
+
+> **Note:** Never commit your `.env` file. The `.env.example` file is safe to commit and serves as a template for other developers.
 
 ---
 
