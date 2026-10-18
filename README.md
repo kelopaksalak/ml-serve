@@ -1,6 +1,8 @@
 # Flask ML Backend
 
-A Flask API for registering local scikit-learn model files and serving predictions.
+A reusable Flask REST API for registering scikit-learn models and serving predictions to web applications, mobile apps, desktop software, and other services.
+
+Register multiple models and access each through its model ID. Clients send numeric features over HTTP and receive JSON predictions, so the backend can be used independently of a particular application or programming language.
 
 ## Current implementation
 
@@ -20,7 +22,7 @@ python cli.py create-model fake_model --desc "Two-input regression demo"
 python run.py
 ```
 
-The demo generator writes `ml_models/fake_model.pkl`. It predicts the sum of two inputs, approximately: `[2, 3]` produces `5`. It is not an adaptive difficulty model.
+The demo generator writes `ml_models/fake_model.pkl`. It predicts the sum of two inputs, approximately: `[2, 3]` produces `5`. Use it to verify the API before registering your own trained models.
 
 CLI commands:
 
@@ -72,32 +74,39 @@ Prediction response:
 {"success": true, "data": {"prediction": 5.0}}
 ```
 
-The API currently returns a raw prediction. It does not return confidence or `continue` / `repeat` / `advance`. Invalid payloads and model-processing errors return 400; missing model IDs return 404.
+The API returns the model's raw prediction, which may be a numeric value, a class label, or an array depending on the estimator. Invalid payloads and model-processing errors return 400; missing model IDs return 404.
 
-## Unity response parsing
+## Connecting any client
 
-The response values are nested inside `data`. These DTOs match the numeric demo:
+Any client capable of sending HTTP requests can call the API. Set `Content-Type: application/json`, send the feature list, and read the result from `data.prediction`.
 
-```csharp
-[System.Serializable]
-public class PredictionData { public float prediction; }
+For example, from JavaScript:
 
-[System.Serializable]
-public class PredictionResponse
-{
-    public bool success;
-    public PredictionData data;
+```javascript
+const modelId = 1; // Replace with an ID returned by GET /api/ml_model.
+const response = await fetch(`http://localhost:5000/api/ml_model/${modelId}/predict`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ features: [2.0, 3.0] }),
+});
+
+const result = await response.json();
+if (!response.ok) {
+  throw new Error(JSON.stringify(result.message ?? result));
 }
+console.log(result.data.prediction);
 ```
 
-After checking the HTTP request succeeded:
+This example works in a JavaScript server runtime with `fetch` or a browser using the same origin as the API. Cross-origin browser access requires CORS configuration or a same-origin proxy; CORS is not currently configured.
 
-```csharp
-PredictionResponse result = JsonUtility.FromJson<PredictionResponse>(predictionJson);
-float prediction = result.data.prediction;
-```
+## Using your own models
 
-A classifier with string labels requires a corresponding prediction DTO. The Unity client itself is not present in this repository.
+1. Train a scikit-learn estimator or pipeline outside this backend and export it with `joblib.dump()`.
+2. Place the trusted `.pkl` file in `ml_models/`, using a name such as `price_predictor.pkl`.
+3. Register it with `python cli.py create-model price_predictor` or `POST /api/ml_model`.
+4. Find its ID using `GET /api/ml_model` and send requests to its prediction endpoint.
+
+Models must accept a two-dimensional numeric input and provide a `predict()` method. Each request supplies one sample. Match the feature count, ordering, and preprocessing used during training. If preprocessing is needed, export a compatible pipeline along with the estimator. Keep the serving library versions compatible with those used to train the model.
 
 ## Configuration and deployment
 
@@ -119,6 +128,6 @@ PostgreSQL is optional and requires an installed driver and a matching SQLAlchem
 
 Tests use an in-memory database and a temporary trained model. They do not modify the existing database or model files.
 
-## Planned functionality
+## Current scope
 
-The VR adaptive-learning design is in `../../ml_model_unity.md`. Unity data collection, training on real session data, confidence-based difficulty decisions, update/delete endpoints, model versioning, monitoring, and multi-framework support are not implemented. `IMPROVEMENTS.md`, if present locally, describes future ideas rather than current features.
+The backend provides model registration, metadata lookup, and single-sample inference. Model training and application-specific interpretation of predictions belong to the integrating project. File uploads, update/delete endpoints, batch prediction, confidence scores, model versioning, and multi-framework support are not currently implemented.
