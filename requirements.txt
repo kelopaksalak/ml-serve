@@ -1,9 +1,8 @@
 flask
 flask-sqlalchemy
-flask-jwt-extended
 marshmallow
-werkzeug
 python-dotenv
 gunicorn
 click
 scikit-learn
+flask-swagger-ui==5.33.1

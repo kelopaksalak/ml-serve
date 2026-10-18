@@ -1,249 +1,124 @@
-<div align="center">
-
 # Flask ML Backend
 
-A Flask backend for serving scikit-learn models through REST APIs, with CLI-based boilerplate generation for new models.
+A Flask API for registering local scikit-learn model files and serving predictions.
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://scikit-learn.org)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
+## Current implementation
 
-</div>
+Requests pass through controllers, Marshmallow schemas, services, and SQLAlchemy models. All model endpoints are public. SQLite is the default database. Model files are loaded with joblib.
 
----
+The CLI registers metadata in the database. It does not generate source files. Registration refers to an existing file in `ml_models/`; it is not a file-upload endpoint. Only load trusted model files because pickle-based formats can execute code.
 
-## Table of Contents
+## Local setup (PowerShell)
 
-1. [Overview](#overview)
-2. [Features](#features)
-3. [Technology Stack](#technology-stack)
-4. [Architecture](#architecture)
-5. [Project Structure](#project-structure)
-6. [How the ML Model System Works](#how-the-ml-model-system-works)
-7. [CLI Tool](#cli-tool)
-8. [Authentication](#authentication)
-9. [Database](#database)
-10. [Configuration](#configuration)
-11. [Local Development](#local-development)
-12. [Docker](#docker)
-13. [Troubleshooting](#troubleshooting)
-14. [Contributing](#contributing)
-
----
-
-## Overview
-
-A Flask backend that lets you serve scikit-learn `.pkl` models through a REST API. Drop a model file, run one CLI command, and it generates all the boilerplate code needed to expose a prediction endpoint with JWT authentication.
-
-Works with any HTTP client -- web apps, mobile apps, Unity, or any other platform.
-
----
-
-## Features
-
-- CLI tool for scaffolding new ML model endpoints
-- scikit-learn model support via `.pkl` files
-- JWT authentication
-- User registration and login
-- ML model CRUD operations
-- Prediction endpoint
-- SQLite (dev) / PostgreSQL (prod)
-- Docker support
-- MVC + Service + DTO architecture
-
----
-
-## Technology Stack
-
-| Technology | Purpose |
-|---|---|
-| **Python 3.11+** | Core language |
-| **Flask** | REST API framework |
-| **scikit-learn** | ML model loading and prediction |
-| **SQLAlchemy** | Database ORM |
-| **Marshmallow** | Request/response validation |
-| **Flask-JWT-Extended** | JWT authentication |
-| **Click** | CLI tool |
-| **Gunicorn** | Production server |
-| **Docker** | Containerized deployment |
-
----
-
-## Architecture
-
-MVC + Service + DTO pattern:
-
-```
-Request --> Controller --> DTO Validation --> Service --> Model/ML --> Response
-```
-
-| Layer | Responsibility |
-|---|---|
-| **Controller** | HTTP routes and responses |
-| **DTO** | Input/output validation |
-| **Service** | Business logic |
-| **Model** | Database entities |
-| **Middleware** | JWT auth decorator |
-
----
-
-## Project Structure
-
-```
-ml_flask_backend/
-|-- ml_models/                  # Drop .pkl files here
-|-- app/
-|   |-- __init__.py             # App factory
-|   |-- database.py             # SQLAlchemy instance
-|   |-- routes.py               # Blueprint registration
-|   |-- models/                 # Database models
-|   |-- controllers/            # Route handlers
-|   |-- services/               # Business logic
-|   |-- dto/                    # Validation schemas
-|   +-- middleware/              # Auth decorator
-|-- cli.py                      # CLI tool
-|-- config.py                   # Configuration
-|-- run.py                      # Entry point
-|-- requirements.txt
-|-- Dockerfile
-+-- docker-compose.yml
-```
-
----
-
-## How the ML Model System Works
-
-1. Place your `.pkl` file in `ml_models/`
-2. Run `python cli.py create-model <name>`
-3. CLI reads model features and saves metadata to database
-4. API endpoints become available
-5. Client sends features, gets prediction back
-
----
-
-## CLI Tool
-
-```bash
-# Create a user
-python cli.py create-user --username admin --password <your-password>
-
-# Register a model
-python cli.py create-model <model-name> --desc "Description"
-
-# List all models
-python cli.py list-models
-```
-
----
-
-## Authentication
-
-1. Register: `POST /api/auth/register`
-2. Login: `POST /api/auth/login` -- returns JWT token
-3. Send token with requests: `Authorization: Bearer <token>`
-4. Protected endpoints verify the token automatically
-
----
-
-## Database
-
-**Development:** SQLite (auto-created, no setup needed)
-
-**Production:** PostgreSQL via `DATABASE_URL` env variable
-
-### Tables
-
-**users** -- id, username, password_hash, created_at
-
-**ml_models** -- id, name, description, model_type, features, model_path, created_by, created_at, updated_at
-
----
-
-## Configuration
-
-Create a `.env` file:
-
-```bash
-FLASK_ENV=development
-SECRET_KEY=<your-secret-key>
-DATABASE_URL=sqlite:///ml_backend.db
-JWT_SECRET_KEY=<your-jwt-secret>
-```
-
-| Variable | Default |
-|---|---|
-| `FLASK_ENV` | `development` |
-| `SECRET_KEY` | `dev-secret-key` |
-| `DATABASE_URL` | `sqlite:///ml_backend.db` |
-| `JWT_SECRET_KEY` | `jwt-secret-key` |
-
----
-
-## Local Development
-
-```bash
-# Clone
-git clone <repository-url>
-cd ml_flask_backend
-
-# Virtual environment
+```powershell
 python -m venv venv
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # macOS/Linux
-
-# Install
+./venv/Scripts/Activate.ps1
 pip install -r requirements.txt
-
-# Setup environment
-cp .env.example .env
-# Edit .env with your own secrets
-
-# Create user
-python cli.py create-user --username admin --password <your-password>
-
-# Run
+Copy-Item .env.example .env
+python test_model/generate_fake_model.py
+python cli.py create-model fake_model --desc "Two-input regression demo"
 python run.py
 ```
 
-Server runs at `http://127.0.0.1:5000`.
+The demo generator writes `ml_models/fake_model.pkl`. It predicts the sum of two inputs, approximately: `[2, 3]` produces `5`. It is not an adaptive difficulty model.
 
-> **Note:** Never commit your `.env` file. The `.env.example` file is safe to commit and serves as a template for other developers.
+CLI commands:
 
----
-
-## Docker
-
-```bash
-docker build -t ml-backend .
-docker run -p 5000:5000 ml-backend
+```powershell
+python cli.py create-model MODEL_NAME --desc "Description"
+python cli.py list-models
 ```
 
-Or with Docker Compose:
 
-```bash
-docker compose up -d
-docker compose down
+## API contract
+
+### Interactive Swagger documentation
+
+Start the server with `python run.py`, then open http://127.0.0.1:5000/swagger/.
+For Docker, apply source changes with `docker compose up --build -d`.
+The OpenAPI 3.0 specification is available at `/openapi.json`.
+
+Expand any model endpoint, click **Try it out**, enter its parameters, and click **Execute**. No login or token is needed.
+
+Swagger serves its JavaScript and CSS locally through the pinned `flask-swagger-ui`
+dependency. The external spec validator is disabled. Requests from **Try it out** execute real API operations.
+The schema lives in `app/openapi.py`; update it when changing API contracts.
+The integration follows the [flask-swagger-ui documentation](https://github.com/sveint/flask-swagger-ui).
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/ml_model` | List models |
+| GET | `/api/ml_model/<id>` | Read model metadata |
+| POST | `/api/ml_model` | Register an existing local model |
+| POST | `/api/ml_model/<id>/predict` | Predict from an ordered numeric list |
+
+Model registration request:
+
+```json
+{"name": "fake_model", "description": "Demo", "model_type": "regressor"}
 ```
 
----
+`model_type` is optional; scikit-learn regressors are detected automatically. Names may contain letters, numbers, underscores and hyphens. Metadata `features` is a JSON-encoded string of feature names, or `"[]"` if the estimator has no feature names. Send prediction inputs in the training feature order.
 
-## Troubleshooting
+Prediction request to `/api/ml_model/<id>/predict`:
 
-| Error | Fix |
-|---|---|
-| `ModuleNotFoundError: flask_jwt_extended` | Run `pip install -r requirements.txt` |
-| `NoReferencedTableError` foreign key | Ensure `User` model is imported before `db.create_all()` |
-| Model not found when registering | Check `.pkl` file is in `ml_models/` and name matches |
-| `Schema.dump() missing argument` | Use `Schema().dump(data)` not `Schema.dump(data)` |
-| JWT token expired | Re-login (tokens expire after 24h) |
+```json
+{"features": [2.0, 3.0]}
+```
 
----
+Prediction response:
 
-## Contributing
+```json
+{"success": true, "data": {"prediction": 5.0}}
+```
 
-1. Create a feature branch
-2. Make your changes
-3. Test locally
-4. Commit and push
-5. Open a pull request
+The API currently returns a raw prediction. It does not return confidence or `continue` / `repeat` / `advance`. Invalid payloads and model-processing errors return 400; missing model IDs return 404.
+
+## Unity response parsing
+
+The response values are nested inside `data`. These DTOs match the numeric demo:
+
+```csharp
+[System.Serializable]
+public class PredictionData { public float prediction; }
+
+[System.Serializable]
+public class PredictionResponse
+{
+    public bool success;
+    public PredictionData data;
+}
+```
+
+After checking the HTTP request succeeded:
+
+```csharp
+PredictionResponse result = JsonUtility.FromJson<PredictionResponse>(predictionJson);
+float prediction = result.data.prediction;
+```
+
+A classifier with string labels requires a corresponding prediction DTO. The Unity client itself is not present in this repository.
+
+## Configuration and deployment
+
+`FLASK_ENV` selects `development` or `production`. `DATABASE_URL` is read from the environment or local `.env`.
+
+```powershell
+docker compose up --build -d
+```
+
+The Docker entry point is `gunicorn --bind 0.0.0.0:5000 run:app`. Compose mounts `ml_models/` and `instance/`. Keep the model files and their registered paths accessible in the deployment environment; register models there when moving from Windows to Docker.
+
+PostgreSQL is optional and requires an installed driver and a matching SQLAlchemy `DATABASE_URL`. The default requirements do not include that driver. The app calls `db.create_all()` at startup; migration tooling is not configured, and `flask db upgrade` is not supported. Existing table alterations require a separate migration plan.
+
+## Tests
+
+```powershell
+./venv/Scripts/python.exe -m unittest discover -s tests -v
+```
+
+Tests use an in-memory database and a temporary trained model. They do not modify the existing database or model files.
+
+## Planned functionality
+
+The VR adaptive-learning design is in `../../ml_model_unity.md`. Unity data collection, training on real session data, confidence-based difficulty decisions, update/delete endpoints, model versioning, monitoring, and multi-framework support are not implemented. `IMPROVEMENTS.md`, if present locally, describes future ideas rather than current features.
