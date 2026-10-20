@@ -21,6 +21,9 @@ def create_app(config_name=None, config_overrides=None):
     from app.routes import register_routes
     register_routes(app)
 
+    from app.websocket import register_websocket
+    register_websocket(app)
+
     from app.openapi import register_swagger
     register_swagger(app)
 

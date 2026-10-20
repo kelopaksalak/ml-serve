@@ -6,3 +6,4 @@ gunicorn
 click
 scikit-learn
 flask-swagger-ui==5.33.1
+flask-sock
